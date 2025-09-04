@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TiTimers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        /* Style for the finished timer state */
+        .timer-finished {
+            background-color: #4a044e; /* Dark purple */
+            box-shadow: 0 0 15px rgba(192, 72, 255, 0.6);
+            border: 1px solid #a855f7;
+        }
+        .timer-finished .time-display {
+            color: #f0abfc;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-purple-400">TiTimers</h1>
+            <p class="text-gray-400 mt-2">by <a href="https://github.com/Creatico6" target="_blank" rel="noopener noreferrer" class="text-teal-400 hover:text-teal-300 underline">tnuno-mo</a></p>
+        </header>
+
+        <!-- Form to add a new timer -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg max-w-2xl mx-auto mb-10">
+            <h2 class="text-2xl font-semibold mb-4 text-center">Add New Timer</h2>
+            <form id="add-timer-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                <!-- Name field -->
+                <div class="sm:col-span-2">
+                    <label for="timer-name" class="block text-sm font-medium text-gray-300 mb-1">Name (optional)</label>
+                    <input type="text" id="timer-name" placeholder="E.g., Study, Coffee Break" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                </div>
+                
+                <!-- Duration inputs -->
+                <div class="sm:col-span-2 grid grid-cols-3 gap-3">
+                    <div>
+                         <label for="timer-hours" class="block text-sm font-medium text-gray-300 mb-1">Hours</label>
+                         <input type="number" id="timer-hours" min="0" placeholder="0" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                    </div>
+                    <div>
+                         <label for="timer-minutes" class="block text-sm font-medium text-gray-300 mb-1">Minutes</label>
+                         <input type="number" id="timer-minutes" min="0" max="59" placeholder="10" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                    </div>
+                    <div>
+                         <label for="timer-seconds" class="block text-sm font-medium text-gray-300 mb-1">Seconds</label>
+                         <input type="number" id="timer-seconds" min="0" max="59" placeholder="0" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <button type="submit" id="add-countdown" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 shadow-md">Start Countdown</button>
+                <button type="submit" id="add-stopwatch" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-md transition duration-300 shadow-md">Start Stopwatch</button>
+            </form>
+        </div>
+
+        <!-- Timers container -->
+        <div id="timers-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Timer cards will be inserted here via JavaScript -->
+        </div>
+
+    </div>
+
+    <!-- Modal/Popup for time up notification -->
+    <div id="finish-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-8 max-w-sm w-full text-center border-2 border-purple-500 transform transition-all scale-95 opacity-0" id="modal-content">
+            <h3 class="text-2xl font-bold text-purple-300 mb-2">Time's Up!</h3>
+            <p id="modal-timer-name" class="text-xl text-white mb-6"></p>
+            <button id="close-modal-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-md transition duration-300 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">
+                Close
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        const timersContainer = document.getElementById('timers-container');
+        const addTimerForm = document.getElementById('add-timer-form');
+        const timerNameInput = document.getElementById('timer-name');
+        const hoursInput = document.getElementById('timer-hours');
+        const minutesInput = document.getElementById('timer-minutes');
+        const secondsInput = document.getElementById('timer-seconds');
+        const addCountdownBtn = document.getElementById('add-countdown');
+        const addStopwatchBtn = document.getElementById('add-stopwatch');
+        const finishModal = document.getElementById('finish-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTimerName = document.getElementById('modal-timer-name');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // Audio context for notification sound
+        let audioContext;
+        
+        // Array to store the state of all timers
+        let timers = [];
+        let globalIntervalId = null;
+
+        // Load timers from localStorage on startup
+        function loadTimers() {
+            const savedTimers = localStorage.getItem('multiTimers');
+            if (savedTimers) {
+                timers = JSON.parse(savedTimers).map(timer => {
+                    // If the timer was running, recalculate the accumulated time
+                    if (timer.isRunning) {
+                         const timePassedSinceSave = Date.now() - (timer.lastSaveTime || timer.lastStartTime);
+                         timer.accumulatedTime += timePassedSinceSave;
+                         timer.lastStartTime = Date.now();
+                    }
+                    return timer;
+                });
+                renderAllTimers();
+                startGlobalInterval();
+            }
+        }
+
+        // Save timers to localStorage
+        function saveTimers() {
+            // Add a timestamp to calculate elapsed time on page reload
+            const timersToSave = timers.map(timer => ({...timer, lastSaveTime: Date.now() }));
+            localStorage.setItem('multiTimers', JSON.stringify(timersToSave));
+        }
+        
+        // Function to create an oscillator and play a sound
+        function playNotificationSound() {
+            if (!audioContext) {
+                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 1);
+            oscillator.stop(audioContext.currentTime + 1);
+        }
+
+        // Function to show the completion popup
+        function showFinishPopup(name) {
+            modalTimerName.textContent = `"${name}"`;
+            finishModal.classList.remove('hidden');
+            // Small entry animation
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10); 
+        }
+
+        // Function to hide the completion popup
+        function hideFinishPopup() {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => {
+                 finishModal.classList.add('hidden');
+            }, 200); // Matches the transition duration
+        }
+
+
+        // Function to format time (ms) to HH:MM:SS.cs
+        function formatTime(ms) {
+            if (ms < 0) ms = 0;
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+            const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+            const centiseconds = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+
+            return `${hours}:${minutes}:${seconds}<span class="text-3xl">.${centiseconds}</span>`;
+        }
+        
+        // Add a new timer
+        function addTimer(type) {
+            const name = timerNameInput.value.trim() || (type === 'countdown' ? 'Countdown' : 'Stopwatch');
+            const hours = parseInt(hoursInput.value) || 0;
+            const minutes = parseInt(minutesInput.value) || 0;
+            const seconds = parseInt(secondsInput.value) || 0;
+            
+            const initialDuration = (hours * 3600 + minutes * 60 + seconds) * 1000;
+
+            if (type === 'countdown' && initialDuration <= 0) {
+                // Simulate a visual error feedback
+                addTimerForm.classList.add('animate-shake');
+                setTimeout(() => addTimerForm.classList.remove('animate-shake'), 500);
+                return;
+            }
+
+            const newTimer = {
+                id: Date.now(),
+                name,
+                type,
+                initialDuration,
+                accumulatedTime: 0,
+                lastStartTime: Date.now(),
+                isRunning: true,
+                isFinished: false,
+            };
+
+            timers.push(newTimer);
+            renderAllTimers();
+            startGlobalInterval();
+
+            // Clear the form fields
+            timerNameInput.value = '';
+            hoursInput.value = '';
+            minutesInput.value = '';
+            secondsInput.value = '';
+        }
+        
+        // Render all timers on the screen
+        function renderAllTimers() {
+            timersContainer.innerHTML = '';
+            timers.forEach(timer => {
+                const timerCard = document.createElement('div');
+                timerCard.dataset.id = timer.id;
+                timerCard.className = `timer-card bg-gray-800 rounded-xl p-5 shadow-lg flex flex-col items-center transition-all duration-300 ${timer.isFinished ? 'timer-finished' : ''}`;
+                
+                const currentTime = calculateCurrentTime(timer);
+                
+                timerCard.innerHTML = `
+                    <h2 class="text-xl font-semibold mb-2 text-center break-all">${timer.name}</h2>
+                    <p class="time-display text-4xl sm:text-5xl font-mono tracking-tighter mb-4 text-gray-100">${formatTime(currentTime)}</p>
+                    <div class="flex space-x-2 w-full mt-auto">
+                        <button class="toggle-btn w-full font-bold py-2 px-4 rounded-md transition duration-300 ${timer.isRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}">${timer.isRunning ? 'Pause' : 'Start'}</button>
+                        <button class="reset-btn w-full bg-gray-600 hover:bg-gray-700 font-bold py-2 px-4 rounded-md transition duration-300">Reset</button>
+                        <button class="delete-btn w-full bg-red-600 hover:bg-red-700 font-bold py-2 px-4 rounded-md transition duration-300">Delete</button>
+                    </div>
+                `;
+                timersContainer.appendChild(timerCard);
+            });
+            saveTimers();
+        }
+        
+        // Start the global interval that updates the timers
+        function startGlobalInterval() {
+            if (!globalIntervalId && timers.some(t => t.isRunning)) {
+                globalIntervalId = setInterval(tick, 50); // Update every 50ms for a smoother display
+            }
+        }
+        
+        // Check if the global interval can be stopped
+        function checkAndStopGlobalInterval() {
+            if (globalIntervalId && !timers.some(t => t.isRunning)) {
+                clearInterval(globalIntervalId);
+                globalIntervalId = null;
+            }
+        }
+        
+        // Function called at each 'tick' of the interval
+        function tick() {
+            timers.forEach(timer => {
+                if (timer.isRunning) {
+                    updateTimerDisplay(timer);
+                }
+            });
+            saveTimers(); // Save state periodically
+        }
+        
+        function calculateCurrentTime(timer) {
+            let displayTime;
+            if (timer.type === 'stopwatch') {
+                 const elapsedTime = timer.isRunning ? timer.accumulatedTime + (Date.now() - timer.lastStartTime) : timer.accumulatedTime;
+                 displayTime = elapsedTime;
+            } else { // countdown
+                 const elapsedTime = timer.isRunning ? timer.accumulatedTime + (Date.now() - timer.lastStartTime) : timer.accumulatedTime;
+                 displayTime = timer.initialDuration - elapsedTime;
+            }
+            return displayTime;
+        }
+
+        // Update the display of a specific timer
+        function updateTimerDisplay(timer) {
+            const card = document.querySelector(`.timer-card[data-id='${timer.id}']`);
+            if (!card) return;
+
+            const timeDisplay = card.querySelector('.time-display');
+            const displayTime = calculateCurrentTime(timer);
+            
+            if (timeDisplay) {
+                timeDisplay.innerHTML = formatTime(displayTime);
+            }
+
+            if (timer.type === 'countdown' && displayTime <= 0 && !timer.isFinished) {
+                timer.isFinished = true;
+                timer.isRunning = false; // Stop the count
+                card.classList.add('timer-finished');
+                card.querySelector('.toggle-btn').innerText = 'Start';
+                card.querySelector('.toggle-btn').classList.replace('bg-yellow-500', 'bg-green-500');
+                card.querySelector('.toggle-btn').classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+                playNotificationSound();
+                showFinishPopup(timer.name);
+                checkAndStopGlobalInterval();
+            }
+        }
+
+        // Event listener for control buttons (start, reset, delete)
+        timersContainer.addEventListener('click', (e) => {
+            const card = e.target.closest('.timer-card');
+            if (!card) return;
+
+            const timerId = Number(card.dataset.id);
+            const timer = timers.find(t => t.id === timerId);
+            if (!timer) return;
+            
+            // Reactivate audio context on user interaction
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            if (e.target.classList.contains('toggle-btn')) {
+                timer.isRunning = !timer.isRunning;
+                if (timer.isRunning) {
+                    timer.lastStartTime = Date.now();
+                    if (timer.isFinished) { // If restarting a finished timer
+                        timer.isFinished = false;
+                        timer.accumulatedTime = 0;
+                        card.classList.remove('timer-finished');
+                    }
+                    startGlobalInterval();
+                } else {
+                    timer.accumulatedTime += Date.now() - timer.lastStartTime;
+                    checkAndStopGlobalInterval();
+                }
+                renderAllTimers(); // Re-render to update the button
+            }
+            else if (e.target.classList.contains('reset-btn')) {
+                timer.isRunning = false;
+                timer.accumulatedTime = 0;
+                timer.isFinished = false;
+                card.classList.remove('timer-finished');
+                updateTimerDisplay(timer);
+                checkAndStopGlobalInterval();
+                renderAllTimers(); // Re-render to update button and time
+            }
+            else if (e.target.classList.contains('delete-btn')) {
+                timers = timers.filter(t => t.id !== timerId);
+                renderAllTimers();
+                checkAndStopGlobalInterval();
+            }
+        });
+
+        // Event Listeners for the add buttons
+        addCountdownBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addTimer('countdown');
+        });
+
+        addStopwatchBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addTimer('stopwatch');
+        });
+        
+        // Listeners to close the modal
+        closeModalBtn.addEventListener('click', hideFinishPopup);
+        finishModal.addEventListener('click', (e) => {
+            // Close if clicking on the background (outside the modal content)
+            if (e.target === finishModal) {
+                hideFinishPopup();
+            }
+        });
+
+        // Load timers when the page starts
+        window.addEventListener('load', loadTimers);
+    </script>
+</body>
+</html>
+

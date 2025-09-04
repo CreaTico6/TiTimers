@@ -1,7 +1,7 @@
 # TiTimers
 TiTimers
 
-[App screenshot here]
+![TiTimers](TiTimersPrtScr.png)
 
 Created by tnuno-mo.
 

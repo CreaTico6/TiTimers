@@ -42,7 +42,7 @@
                 <!-- Name field -->
                 <div class="sm:col-span-2">
                     <label for="timer-name" class="block text-sm font-medium text-gray-300 mb-1">Name (optional)</label>
-                    <input type="text" id="timer-name" placeholder="E.g., Study, Coffee Break" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                    <input type="text" id="timer-name" placeholder="E.g., Study, Coffee Break, Make a call, ..." class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
                 </div>
                 
                 <!-- Duration inputs -->
@@ -53,7 +53,7 @@
                     </div>
                     <div>
                          <label for="timer-minutes" class="block text-sm font-medium text-gray-300 mb-1">Minutes</label>
-                         <input type="number" id="timer-minutes" min="0" max="59" placeholder="10" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
+                         <input type="number" id="timer-minutes" min="0" max="59" placeholder="0" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 focus:ring-purple-500 focus:border-purple-500 transition">
                     </div>
                     <div>
                          <label for="timer-seconds" class="block text-sm font-medium text-gray-300 mb-1">Seconds</label>
@@ -112,11 +112,10 @@
             const savedTimers = localStorage.getItem('multiTimers');
             if (savedTimers) {
                 timers = JSON.parse(savedTimers).map(timer => {
-                    // If the timer was running, recalculate the accumulated time
-                    if (timer.isRunning) {
-                         const timePassedSinceSave = Date.now() - (timer.lastSaveTime || timer.lastStartTime);
-                         timer.accumulatedTime += timePassedSinceSave;
-                         timer.lastStartTime = Date.now();
+                    // If the timer was running, accumulate elapsed time since lastStartTime
+                    if (timer.isRunning && timer.lastStartTime) {
+                        timer.accumulatedTime += Date.now() - timer.lastStartTime;
+                        timer.lastStartTime = Date.now();
                     }
                     return timer;
                 });
@@ -127,9 +126,8 @@
 
         // Save timers to localStorage
         function saveTimers() {
-            // Add a timestamp to calculate elapsed time on page reload
-            const timersToSave = timers.map(timer => ({...timer, lastSaveTime: Date.now() }));
-            localStorage.setItem('multiTimers', JSON.stringify(timersToSave));
+            // Save timers without adding a timestamp, just persist the current state
+            localStorage.setItem('multiTimers', JSON.stringify(timers));
         }
         
         // Function to create an oscillator and play a sound
